@@ -65,10 +65,6 @@ def plan_reader_dataframe(experienced_plans_filepath, plans_filepath="", selecte
         normal_activities = normal_dataframe.activities
         normal_plans = normal_dataframe.plans
         
-        # Create a list of all persons without any activities
-        print(experienced_plans)
-        print(experienced_activities)
-        
         # create a list of persons with no activities
         plans_having_activity = experienced_activities.plan_id.unique()
         persons_without_activity = []
@@ -81,7 +77,7 @@ def plan_reader_dataframe(experienced_plans_filepath, plans_filepath="", selecte
         # adding them to experienced_activities
         activities_to_add = []
         for person in persons_without_activity:
-            persons_activities = normal_activities[normal_activities['plan_id'] == normal_plans[normal_plans['person_id'] == str(person)]['id'].values[0]]
+            persons_activities = normal_activities[normal_activities['plan_id'] == normal_plans[normal_plans['person_id'] == person]['id'].values[0]]
             activities_to_add += persons_activities.to_dict(orient='records')
         
         experienced_activities = pd.concat([experienced_activities, pd.DataFrame(activities_to_add)])
