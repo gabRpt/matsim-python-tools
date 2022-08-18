@@ -67,28 +67,42 @@ def plan_reader_dataframe(experienced_plans_filepath, plans_filepath="", selecte
         
         # create a list of persons with no activities
         plans_having_activity = experienced_activities.plan_id.unique()
-        persons_without_activity = []
+        persons_without_activity = {} # key: person_id, value: plan_id
         for plan in experienced_plans.itertuples():
             plan_id = plan.id
             if plan_id not in plans_having_activity:
-                persons_without_activity.append(plan.person_id)
-            
+                persons_without_activity[plan.person_id] = plan_id
+        
         # Search all activities of the persons without any activities
         # adding them to experienced_activities
         activities_to_add = []
-        for person in persons_without_activity:
+        for person in persons_without_activity.keys():
             persons_activities = normal_activities[normal_activities['plan_id'] == normal_plans[normal_plans['person_id'] == person]['id'].values[0]]
+            # putting the right person_id
+            persons_activities = persons_activities.assign(plan_id = persons_without_activity[person])
             activities_to_add += persons_activities.to_dict(orient='records')
-        
         experienced_activities = pd.concat([experienced_activities, pd.DataFrame(activities_to_add)])
+                
+        # reset the index of the activities to add
+        experienced_activities.reset_index(drop=True, inplace=True)
         
     return Plans(experienced_persons, experienced_plans, experienced_activities, experienced_legs, experienced_routes)
 
 
+# Global variables to keep track of ids to avoid duplicates
+current_plan_id = 0
+current_activity_id = 0
+current_leg_id = 0
+current_route_id = 0
 
 # Parsing the plan file
 def _parse_plan_file(filename, selected_plans_only = False):
     plan_tree = ET.iterparse(xopen.xopen(filename), events=['start','end'])
+    
+    global current_plan_id
+    global current_activity_id
+    global current_leg_id
+    global current_route_id
     
     persons = []
     plans = []
@@ -108,10 +122,6 @@ def _parse_plan_file(filename, selected_plans_only = False):
     is_parsing_leg = False
     
     current_person_id = None
-    current_plan_id = 0
-    current_activity_id = 0
-    current_leg_id = 0
-    current_route_id = 0
     
     for xml_event, elem in plan_tree:
         if elem.tag in ['person', 'leg', 'activity', 'plan', 'route'] and xml_event == 'end':
