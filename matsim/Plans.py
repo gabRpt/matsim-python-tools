@@ -66,20 +66,26 @@ def plan_reader_dataframe(experienced_plans_filepath, plans_filepath="", selecte
         normal_plans = normal_dataframe.plans
         
         # Create a list of all persons without any activities
-        persons_without_activities = []
-        for person in experienced_persons.id:
-            if len(experienced_activities[experienced_activities['plan_id'] == experienced_plans[experienced_plans['person_id'] == str(person)]['id'].values[0]]) == 0:
-                persons_without_activities.append(person)
+        print(experienced_plans)
+        print(experienced_activities)
+        
+        # create a list of persons with no activities
+        plans_having_activity = experienced_activities.plan_id.unique()
+        persons_without_activity = []
+        for plan in experienced_plans.itertuples():
+            plan_id = plan.id
+            if plan_id not in plans_having_activity:
+                persons_without_activity.append(plan.person_id)
             
         # Search all activities of the persons without any activities
         # adding them to experienced_activities
         activities_to_add = []
-        for person in persons_without_activities:
+        for person in persons_without_activity:
             persons_activities = normal_activities[normal_activities['plan_id'] == normal_plans[normal_plans['person_id'] == str(person)]['id'].values[0]]
             activities_to_add += persons_activities.to_dict(orient='records')
         
         experienced_activities = pd.concat([experienced_activities, pd.DataFrame(activities_to_add)])
-    
+        
     return Plans(experienced_persons, experienced_plans, experienced_activities, experienced_legs, experienced_routes)
 
 
