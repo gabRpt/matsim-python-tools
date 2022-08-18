@@ -52,8 +52,41 @@ def _parseAttributes(elem, dict):
 # Leg : plan_id
 # Route :leg_id
 # The column names of the dataframes are the same as the attribute names (<name:'value'> and <attribute> are parsed)
-def plan_reader_dataframe(filename, selected_plans_only = False):
-    tree = ET.iterparse(xopen.xopen(filename), events=['start','end'])
+def plan_reader_dataframe(experienced_plans_filepath, plans_filepath="", selected_plans_only = False):
+    experienced_dataframe = _parse_plan_file(experienced_plans_filepath, selected_plans_only=selected_plans_only)
+    experienced_activities = experienced_dataframe.activities
+    experienced_persons = experienced_dataframe.persons
+    experienced_plans = experienced_dataframe.plans
+    experienced_legs = experienced_dataframe.legs
+    experienced_routes = experienced_dataframe.routes
+    
+    if plans_filepath != "":
+        normal_dataframe = _parse_plan_file(plans_filepath, selected_plans_only=selected_plans_only)
+        normal_activities = normal_dataframe.activities
+        normal_plans = normal_dataframe.plans
+        
+        # Create a list of all persons without any activities
+        persons_without_activities = []
+        for person in experienced_persons.id:
+            if len(experienced_activities[experienced_activities['plan_id'] == experienced_plans[experienced_plans['person_id'] == str(person)]['id'].values[0]]) == 0:
+                persons_without_activities.append(person)
+            
+        # Search all activities of the persons without any activities
+        # adding them to experienced_activities
+        activities_to_add = []
+        for person in persons_without_activities:
+            persons_activities = normal_activities[normal_activities['plan_id'] == normal_plans[normal_plans['person_id'] == str(person)]['id'].values[0]]
+            activities_to_add += persons_activities.to_dict(orient='records')
+        
+        experienced_activities = pd.concat([experienced_activities, pd.DataFrame(activities_to_add)])
+    
+    return Plans(experienced_persons, experienced_plans, experienced_activities, experienced_legs, experienced_routes)
+
+
+
+# Parsing the plan file
+def _parse_plan_file(filename, selected_plans_only = False):
+    plan_tree = ET.iterparse(xopen.xopen(filename), events=['start','end'])
     
     persons = []
     plans = []
@@ -78,7 +111,7 @@ def plan_reader_dataframe(filename, selected_plans_only = False):
     current_leg_id = 0
     current_route_id = 0
     
-    for xml_event, elem in tree:
+    for xml_event, elem in plan_tree:
         if elem.tag in ['person', 'leg', 'activity', 'plan', 'route'] and xml_event == 'end':
             if is_parsing_person:
                 persons.append(current_person)
@@ -171,4 +204,3 @@ def plan_reader_dataframe(filename, selected_plans_only = False):
     routes = pd.DataFrame.from_records(routes)
     
     return Plans(persons, plans, activities, legs, routes)
-    

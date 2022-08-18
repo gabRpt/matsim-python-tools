@@ -63,7 +63,7 @@ def test_plan_reader_dataframe(filepath):
     selected_plans_cases = [True, False]
     
     for selected_plans_only in selected_plans_cases:
-        plans_dataframes = Plans.plan_reader_dataframe(HERE / filepath, selected_plans_only)
+        plans_dataframes = Plans.plan_reader_dataframe(HERE / filepath, selected_plans_only=selected_plans_only)
         
         persons = plans_dataframes.persons
         plans = plans_dataframes.plans
