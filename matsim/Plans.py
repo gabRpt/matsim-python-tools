@@ -52,8 +52,8 @@ def _parseAttributes(elem, dict):
 # Leg : plan_id
 # Route :leg_id
 # The column names of the dataframes are the same as the attribute names (<name:'value'> and <attribute> are parsed)
-def plan_reader_dataframe(experienced_plans_filepath, plans_filepath="", selected_plans_only = False):
-    experienced_dataframe = _parse_plan_file(experienced_plans_filepath, selected_plans_only=selected_plans_only)
+def plan_reader_dataframe(experienced_plans_filepath, plans_filepath=""):
+    experienced_dataframe = _parse_plan_file(experienced_plans_filepath)
     experienced_activities = experienced_dataframe.activities
     experienced_persons = experienced_dataframe.persons
     experienced_plans = experienced_dataframe.plans
@@ -61,17 +61,17 @@ def plan_reader_dataframe(experienced_plans_filepath, plans_filepath="", selecte
     experienced_routes = experienced_dataframe.routes
     
     if plans_filepath != "":
-        normal_dataframe = _parse_plan_file(plans_filepath, selected_plans_only=selected_plans_only)
+        normal_dataframe = _parse_plan_file(plans_filepath)
         normal_activities = normal_dataframe.activities
         normal_plans = normal_dataframe.plans
-        
+        print(normal_plans)
         # create a list of persons with no activities
         plans_having_activity = experienced_activities.plan_id.unique()
         persons_without_activity = {} # key: person_id, value: plan_id
         for plan in experienced_plans.itertuples():
             plan_id = plan.id
             if plan_id not in plans_having_activity:
-                persons_without_activity[plan.person_id] = plan_id
+                persons_without_activity[plan.person_id] = plan_id        
         
         # Search all activities of the persons without any activities
         # adding them to experienced_activities
@@ -85,7 +85,6 @@ def plan_reader_dataframe(experienced_plans_filepath, plans_filepath="", selecte
                 
         # reset the index of the activities to add
         experienced_activities.reset_index(drop=True, inplace=True)
-        
     return Plans(experienced_persons, experienced_plans, experienced_activities, experienced_legs, experienced_routes)
 
 
@@ -96,7 +95,7 @@ current_leg_id = 0
 current_route_id = 0
 
 # Parsing the plan file
-def _parse_plan_file(filename, selected_plans_only = False):
+def _parse_plan_file(filename):
     plan_tree = ET.iterparse(xopen.xopen(filename), events=['start','end'])
     
     global current_plan_id
@@ -120,7 +119,7 @@ def _parse_plan_file(filename, selected_plans_only = False):
     is_parsing_person = False
     is_parsing_activity = False
     is_parsing_leg = False
-    
+        
     current_person_id = None
     
     for xml_event, elem in plan_tree:
@@ -141,10 +140,9 @@ def _parse_plan_file(filename, selected_plans_only = False):
                 is_parsing_leg = False
             
             if elem.tag == 'plan':
-                if elem.attrib['selected'] == 'no' and selected_plans_only: continue
                 plans.append(current_plan)
                 current_plan = {}
-                
+            
             if elem.tag == 'route':
                 routes.append(current_route)
                 current_route = {}
@@ -159,9 +157,7 @@ def _parse_plan_file(filename, selected_plans_only = False):
         
         # PLAN
         elif elem.tag == 'plan':
-            if elem.attrib['selected'] == 'no' and selected_plans_only: continue
             current_plan_id += 1
-            
             current_plan['id'] = current_plan_id
             current_plan['person_id'] = current_person_id
             current_plan = _parseAttributes(elem, current_plan)
@@ -170,7 +166,6 @@ def _parse_plan_file(filename, selected_plans_only = False):
         elif elem.tag == 'activity':
             is_parsing_activity = True
             current_activity_id += 1
-            
             current_activity['id'] = current_activity_id
             current_activity['plan_id'] = current_plan_id
             current_activity = _parseAttributes(elem, current_activity)
@@ -199,7 +194,6 @@ def _parse_plan_file(filename, selected_plans_only = False):
         # ATTRIBUTES
         elif elem.tag == 'attribute' and xml_event == 'end':
             attribs = elem.attrib
-            
             if is_parsing_activity:
                 current_activity[attribs['name']] = elem.text
                 
