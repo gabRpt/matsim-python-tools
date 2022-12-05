@@ -64,14 +64,14 @@ def plan_reader_dataframe(experienced_plans_filepath, plans_filepath=""):
         normal_dataframe = _parse_plan_file(plans_filepath)
         normal_activities = normal_dataframe.activities
         normal_plans = normal_dataframe.plans
-        print(normal_plans)
+        
         # create a list of persons with no activities
         plans_having_activity = experienced_activities.plan_id.unique()
         persons_without_activity = {} # key: person_id, value: plan_id
         for plan in experienced_plans.itertuples():
             plan_id = plan.id
             if plan_id not in plans_having_activity:
-                persons_without_activity[plan.person_id] = plan_id        
+                persons_without_activity[plan.person_id] = plan_id
         
         # Search all activities of the persons without any activities
         # adding them to experienced_activities
@@ -82,11 +82,45 @@ def plan_reader_dataframe(experienced_plans_filepath, plans_filepath=""):
             persons_activities = persons_activities.assign(plan_id = persons_without_activity[person])
             activities_to_add += persons_activities.to_dict(orient='records')
         experienced_activities = pd.concat([experienced_activities, pd.DataFrame(activities_to_add)])
-                
+        
         # reset the index of the activities to add
         experienced_activities.reset_index(drop=True, inplace=True)
+        
+        experienced_activities = _fix_activities_locations(experienced_activities, normal_activities)
+        
     return Plans(experienced_persons, experienced_plans, experienced_activities, experienced_legs, experienced_routes)
 
+
+# In experienced plans, the first activity does not have x and y coordinates
+# This function adds them searching the facility coordinates in the normal plans
+def _fix_activities_locations(experienced_activities, normal_activities):
+    activities_to_fix = experienced_activities[experienced_activities['x'].isnull()]
+
+    for activity in activities_to_fix.itertuples():
+        facility_id = activity.facility
+        link_id = activity.link
+        activity_type = activity.type
+        start_time = activity.start_time
+        end_time = activity.end_time
+        
+        # search the facility coordinates in the normal plans
+        normal_activity = normal_activities[
+            (normal_activities['facility'] == facility_id) &
+            (normal_activities['link'] == link_id) &
+            (normal_activities['type'] == activity_type) &
+            (normal_activities['end_time'] == end_time) &
+            ((normal_activities['start_time'] == start_time) | (normal_activities['start_time'].isnull()))
+        ]
+
+        # Replacing the null values with the normal activity values
+        if len(normal_activity) > 0:
+            normal_activity = normal_activity.iloc[0]
+            experienced_activities.at[activity.Index, 'x'] = normal_activity.x
+            experienced_activities.at[activity.Index, 'y'] = normal_activity.y
+        else:
+            print(f"WARNING: cannot find the coordinates of the activity {activity.Index}")
+    
+    return experienced_activities
 
 # Global variables to keep track of ids to avoid duplicates
 current_plan_id = 0
@@ -170,7 +204,6 @@ def _parse_plan_file(filename):
             current_activity['plan_id'] = current_plan_id
             current_activity = _parseAttributes(elem, current_activity)
             
-        
         # LEG
         elif elem.tag == 'leg':
             is_parsing_leg = True
