@@ -1,7 +1,7 @@
 import xopen
 import xml.etree.ElementTree as ET
 import pandas as pd
-
+import multiprocessing as mp
 
 class Plans:
     def __init__(self, persons, plans, activities, legs, routes):
@@ -86,16 +86,27 @@ def plan_reader_dataframe(experienced_plans_filepath, plans_filepath=""):
         # reset the index of the activities to add
         experienced_activities.reset_index(drop=True, inplace=True)
         
-        experienced_activities = _fix_activities_locations(experienced_activities, normal_activities)
+        # fix the activities locations using mulitprocessing
+        activities_to_fix = experienced_activities[experienced_activities['x'].isnull()]
+        chunksize = 500
+        num_processes = mp.cpu_count()
+        pool = mp.Pool(processes=num_processes)
+        results = []
+        for i in range(0, len(activities_to_fix), chunksize):
+            results.append(pool.apply_async(_fix_activities_locations, args=(experienced_activities, normal_activities, activities_to_fix[i:i+chunksize])))
+        pool.close()
+        pool.join()
+        
+        for result in results:
+            experienced_activities.update(result.get())
+            
         
     return Plans(experienced_persons, experienced_plans, experienced_activities, experienced_legs, experienced_routes)
 
 
 # In experienced plans, the first activity does not have x and y coordinates
 # This function adds them searching the facility coordinates in the normal plans
-def _fix_activities_locations(experienced_activities, normal_activities):
-    activities_to_fix = experienced_activities[experienced_activities['x'].isnull()]
-
+def _fix_activities_locations(experienced_activities, normal_activities, activities_to_fix):    
     for activity in activities_to_fix.itertuples():
         facility_id = activity.facility
         link_id = activity.link
@@ -111,7 +122,6 @@ def _fix_activities_locations(experienced_activities, normal_activities):
             (normal_activities['end_time'] == end_time) &
             ((normal_activities['start_time'] == start_time) | (normal_activities['start_time'].isnull()))
         ]
-
         # Replacing the null values with the normal activity values
         if len(normal_activity) > 0:
             normal_activity = normal_activity.iloc[0]
