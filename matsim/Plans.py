@@ -1,7 +1,7 @@
 import xopen
 import xml.etree.ElementTree as ET
 import pandas as pd
-import multiprocessing as mp
+from matsim import Facility
 
 class Plans:
     def __init__(self, persons, plans, activities, legs, routes):
@@ -52,7 +52,7 @@ def _parseAttributes(elem, dict):
 # Leg : plan_id
 # Route :leg_id
 # The column names of the dataframes are the same as the attribute names (<name:'value'> and <attribute> are parsed)
-def plan_reader_dataframe(experienced_plans_filepath, plans_filepath=""):
+def plan_reader_dataframe(experienced_plans_filepath, plans_filepath="", facilities_file_path=""):
     experienced_dataframe = _parse_plan_file(experienced_plans_filepath)
     experienced_activities = experienced_dataframe.activities
     experienced_persons = experienced_dataframe.persons
@@ -86,51 +86,31 @@ def plan_reader_dataframe(experienced_plans_filepath, plans_filepath=""):
         # reset the index of the activities to add
         experienced_activities.reset_index(drop=True, inplace=True)
         
-        # fix the activities locations using mulitprocessing
-        # activities_to_fix = experienced_activities[experienced_activities['x'].isnull()]
-        # chunksize = 500
-        # num_processes = mp.cpu_count()
-        # pool = mp.Pool(processes=num_processes)
-        # results = []
-        # for i in range(0, len(activities_to_fix), chunksize):
-        #     results.append(pool.apply_async(_fix_activities_locations, args=(experienced_activities, normal_activities, activities_to_fix[i:i+chunksize])))
-        # pool.close()
-        # pool.join()
-        
-        # for result in results:
-        #     experienced_activities.update(result.get())
-            
+        # fix the activities locations 
+        if facilities_file_path != "":
+            experienced_activities = _fix_activities_locations(facilities_file_path, experienced_activities)            
         
     return Plans(experienced_persons, experienced_plans, experienced_activities, experienced_legs, experienced_routes)
 
 
-# In experienced plans, the first activity does not have x and y coordinates
-# This function adds them searching the facility coordinates in the normal plans
-def _fix_activities_locations(experienced_activities, normal_activities, activities_to_fix):    
+def _fix_activities_locations(facilities_file_path, experienced_activities):
+    facility = Facility.facility_reader(facilities_file_path)
+    facilities_df = facility.facilities
+    activities_to_fix = experienced_activities[experienced_activities['x'].isnull()]
+    
     for activity in activities_to_fix.itertuples():
-        facility_id = activity.facility
-        link_id = activity.link
-        activity_type = activity.type
-        start_time = activity.start_time
-        end_time = activity.end_time
+        current_activity_facility_to_fix = activity.facility
         
-        # search the facility coordinates in the normal plans
-        normal_activity = normal_activities[
-            (normal_activities['facility'] == facility_id) &
-            (normal_activities['link'] == link_id) &
-            (normal_activities['type'] == activity_type) &
-            (normal_activities['end_time'] == end_time) &
-            ((normal_activities['start_time'] == start_time) | (normal_activities['start_time'].isnull()))
-        ]
-        # Replacing the null values with the normal activity values
-        if len(normal_activity) > 0:
-            normal_activity = normal_activity.iloc[0]
-            experienced_activities.at[activity.Index, 'x'] = normal_activity.x
-            experienced_activities.at[activity.Index, 'y'] = normal_activity.y
-        else:
-            print(f"WARNING: cannot find the coordinates of the activity {activity.Index}")
+        # find the facility in to fix in the facilities dataframe
+        found_facility = facilities_df[facilities_df['id'] == current_activity_facility_to_fix]
+
+        if not found_facility.empty:
+            # update the activity with the facility location
+            experienced_activities.at[activity.Index, 'x'] = found_facility['x'].values[0]
+            experienced_activities.at[activity.Index, 'y'] = found_facility['y'].values[0]
     
     return experienced_activities
+
 
 # Global variables to keep track of ids to avoid duplicates
 current_plan_id = 0

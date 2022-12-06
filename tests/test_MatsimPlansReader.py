@@ -59,10 +59,10 @@ def test_non_existent():
             pass
         
 def test_plan_reader_experienced():
-    # plans = Plans.plan_reader_dataframe("C:/Users/raapoto/Documents/Furbain/data/simulation_output/output_experienced_plans_sample.xml", "C:/Users/raapoto/Documents/Furbain/data/simulation_output/output_plans_sample.xml")
-    # plans = Plans.plan_reader_dataframe("C:/Users/raapoto/Documents/Furbain/data/simulation_output/output_experienced_plans_sample_large.xml", "C:/Users/raapoto/Documents/Furbain/data/simulation_output/output_plans_sample_large.xml")
+    # plans = Plans.plan_reader_dataframe("C:/Users/raapoto/Documents/Furbain/data/simulation_output/output_experienced_plans_sample.xml", "C:/Users/raapoto/Documents/Furbain/data/simulation_output/output_plans_sample.xml", "C:/Users/raapoto/Documents/Furbain/data/simulation_output/output_facilities.xml.gz")
+    plans = Plans.plan_reader_dataframe("C:/Users/raapoto/Documents/Furbain/data/simulation_output/output_experienced_plans_sample_large.xml", "C:/Users/raapoto/Documents/Furbain/data/simulation_output/output_plans_sample_large.xml", "C:/Users/raapoto/Documents/Furbain/data/simulation_output/output_facilities.xml.gz")
     # plans = Plans.plan_reader_dataframe("C:/Users/raapoto/Documents/Furbain/data/simulation_output/output_experienced_plans.xml.gz", "C:/Users/raapoto/Documents/Furbain/data/simulation_output/output_plans.xml.gz")
-    plans = Plans.plan_reader_dataframe("C:/Users/raapoto/Documents/Furbain/data/simulation_output/output_experienced_plans_test.xml", "C:/Users/raapoto/Documents/Furbain/data/simulation_output/output_plans_test.xml")
+    # plans = Plans.plan_reader_dataframe("C:/Users/raapoto/Documents/Furbain/data/simulation_output/output_experienced_plans_test.xml", "C:/Users/raapoto/Documents/Furbain/data/simulation_output/output_plans_test.xml", "C:/Users/raapoto/Documents/Furbain/data/simulation_output/output_facilities.xml.gz")
 
 @pytest.mark.parametrize('filepath', files)
 def test_plan_reader_dataframe(filepath):
