@@ -87,18 +87,18 @@ def plan_reader_dataframe(experienced_plans_filepath, plans_filepath=""):
         experienced_activities.reset_index(drop=True, inplace=True)
         
         # fix the activities locations using mulitprocessing
-        activities_to_fix = experienced_activities[experienced_activities['x'].isnull()]
-        chunksize = 500
-        num_processes = mp.cpu_count()
-        pool = mp.Pool(processes=num_processes)
-        results = []
-        for i in range(0, len(activities_to_fix), chunksize):
-            results.append(pool.apply_async(_fix_activities_locations, args=(experienced_activities, normal_activities, activities_to_fix[i:i+chunksize])))
-        pool.close()
-        pool.join()
+        # activities_to_fix = experienced_activities[experienced_activities['x'].isnull()]
+        # chunksize = 500
+        # num_processes = mp.cpu_count()
+        # pool = mp.Pool(processes=num_processes)
+        # results = []
+        # for i in range(0, len(activities_to_fix), chunksize):
+        #     results.append(pool.apply_async(_fix_activities_locations, args=(experienced_activities, normal_activities, activities_to_fix[i:i+chunksize])))
+        # pool.close()
+        # pool.join()
         
-        for result in results:
-            experienced_activities.update(result.get())
+        # for result in results:
+        #     experienced_activities.update(result.get())
             
         
     return Plans(experienced_persons, experienced_plans, experienced_activities, experienced_legs, experienced_routes)
